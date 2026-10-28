@@ -1,0 +1,26 @@
+# Render Blueprint: New > Blueprint > pick this repository.
+# Values marked sync: false are entered in the Render dashboard, never stored here.
+services:
+  - type: web
+    name: code-history
+    runtime: docker
+    plan: free
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: APP_PASSWORD
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-120b
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: ALLOW_LOCAL_REPOS
+        value: "false"
+      - key: CLONE_IDLE_MINUTES
+        value: "15"

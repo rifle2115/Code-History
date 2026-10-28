@@ -31,6 +31,29 @@ unused, and when the server stops. Leftovers from a crash are removed at the nex
 you open are never modified or deleted. Re-opening a repository from Recent clones it again; GitHub
 and model responses stay cached in `workspace/cache/`, so a repeat trace costs no model calls.
 
+## Deploy to Render
+
+The repository includes a `Dockerfile` (Python 3.12 with git) and a `render.yaml` Blueprint.
+
+1. In Render, choose **New → Blueprint** and select this repository.
+2. Fill in the values Render asks for: `APP_PASSWORD` (anyone opening the site needs it),
+   `GROQ_API_KEY`, and optionally `GEMINI_API_KEY` and `GITHUB_TOKEN`.
+3. Deploy. The health check is `/healthz`.
+
+On the server, `ALLOW_LOCAL_REPOS=false`: only public `https://github.com/...` repositories can be
+opened, and the server's own disk is never read. Browsers ask for the password once; any username works.
+
+On Render's free plan the service sleeps after 15 minutes without traffic, so the first visit after
+that takes up to a minute. Its disk is wiped on every deploy or restart, which clears the response
+cache, so the first trace of each line after a deploy uses model calls again.
+
+To test the image locally:
+
+```bash
+docker build -t code-history .
+docker run -p 10000:10000 -e APP_PASSWORD=demo -e GROQ_API_KEY=... code-history
+```
+
 ## How a trace works
 
 The pipeline is a LangGraph `StateGraph` ([backend/app/graph.py](backend/app/graph.py)):
@@ -70,6 +93,8 @@ locate → blame → history → discussions → filter ─┬─→ synthesize 
 | `MAX_HISTORY_COMMITS` | `25` | How far back `git log -L` walks. |
 | `MAX_DECISION_COMMITS` | `5` | Substantive commits whose pull requests and issues are fetched. |
 | `CLONE_IDLE_MINUTES` | `30` | Unused temporary clones are deleted after this long. |
+| `APP_PASSWORD` | | When set, the whole site needs this password (HTTP Basic, any username). Set it on any public server. |
+| `ALLOW_LOCAL_REPOS` | `true` | Set to `false` on a server so only public GitHub URLs can be opened. The Docker image defaults to `false`. |
 
 ## Layout
 

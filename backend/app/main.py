@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import re
+import secrets
 import threading
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -83,6 +85,31 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(title="Code-History", lifespan=lifespan)
 
 
+@app.middleware("http")
+async def require_password(request: Request, call_next):
+    # A public deployment would otherwise let anyone spend the model and
+    # GitHub quotas. Browsers prompt once and resend the credentials,
+    # including for the EventSource trace stream.
+    password = config.app_password()
+    if not password or request.url.path == "/healthz":
+        return await call_next(request)
+    header = request.headers.get("authorization", "")
+    if header.startswith("Basic "):
+        try:
+            _user, _, given = base64.b64decode(header[6:]).decode().partition(":")
+        except (ValueError, UnicodeDecodeError):
+            given = ""
+        if secrets.compare_digest(given.encode(), password.encode()):
+            return await call_next(request)
+    return Response("Password required.", status_code=401,
+                    headers={"WWW-Authenticate": 'Basic realm="Code-History", charset="UTF-8"'})
+
+
+@app.get("/healthz")
+def healthz():
+    return {"ok": True}
+
+
 def _repo_path(repo_id: str) -> Path:
     with _LOCK:
         reg = _load_registry()
@@ -124,6 +151,7 @@ def status():
     config.reload_env()
     return {
         "providers": llm.status(),
+        "allow_local": config.allow_local_repos(),
         "github_token": bool(config.github_token()),
     }
 
@@ -140,8 +168,15 @@ def open_repo(req: OpenRequest):
     if not source:
         raise HTTPException(400, "Enter a local path or a GitHub URL.")
 
+    if not config.allow_local_repos():
+        # Public server: never read its own disk or clone from arbitrary hosts.
+        if _SLUG_RE.match(source):
+            source = f"https://github.com/{source}"
+        if not re.match(r"^https://github\.com/[\w.-]+/[\w.-]+?(\.git)?/?$", source):
+            raise HTTPException(400, "Enter a public GitHub repository, e.g. https://github.com/encode/httpx")
+
     local = Path(source).expanduser()
-    ephemeral = not local.exists()
+    ephemeral = not config.allow_local_repos() or not local.exists()
     if not ephemeral:
         try:
             root = git_tools.repo_root(local)

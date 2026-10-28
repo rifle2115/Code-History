@@ -72,6 +72,7 @@ _DURATION = re.compile(r"(?:try again|retry) in\s+((?:[\d.]+(?:h|ms|m|s)\s*)+)",
 _RETRY_DELAY = re.compile(r"retry_?delay\W+(?:seconds\W+)?([\d.]+)s?", re.I)
 _DAILY = re.compile(r"per day|\bTPD\b|\bRPD\b|PerDay|quota", re.I)
 _RATE_LIMITED = re.compile(r"rate.?limit|\b429\b|RESOURCE_EXHAUSTED|quota", re.I)
+_BAD_KEY = re.compile(r"invalid_api_key|Invalid API Key|API key not valid|API_KEY_INVALID|PERMISSION_DENIED", re.I)
 
 _paused: dict[str, float] = {}  # provider name -> unix time its quota comes back
 _paused_lock = threading.Lock()
@@ -185,6 +186,11 @@ def structured(
             try:
                 result = _structured(p, schema, messages, temperature)
             except Exception as exc:
+                if _BAD_KEY.search(str(exc)):
+                    # A revoked or mistyped key won't fix itself mid-trace.
+                    _pause(p.name, 3600)
+                    limits.append(f"{p.label} rejected its API key")
+                    break
                 rl = rate_limit(exc)
                 if rl is None:
                     raise
@@ -200,7 +206,7 @@ def structured(
             path.write_text(result.model_dump_json(), encoding="utf-8")
             return result
 
-    hint = "" if len(chain) > 1 else " Add GEMINI_API_KEY to .env to fall back to Gemini."
+    hint = "" if len(chain) > 1 else " Add GEMINI_API_KEY to fall back to Gemini."
     raise LLMUnavailable("; ".join(limits) + "." + hint)
 
 

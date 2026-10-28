@@ -1,0 +1,8 @@
+.git
+.venv
+.env
+.claude
+workspace
+tests
+**/__pycache__
+*.pyc

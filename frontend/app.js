@@ -60,6 +60,7 @@ async function api(path, opts = {}) {
 async function loadStatus() {
   try {
     const s = await api("/api/status");
+    if (!s.allow_local) $("#sourceInput").placeholder = "GitHub URL or owner/name";
     const models = s.providers.length
       ? s.providers.map((p, i) => {
           const back = p.paused_until ? new Date(p.paused_until * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";

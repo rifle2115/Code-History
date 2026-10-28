@@ -231,6 +231,13 @@ class ProviderTests(Base):
         self.assertEqual(llm.structured(Out, [HumanMessage("d")], usage=u).v, "first")
         self.assertEqual(u, ["cached"])
 
+    def test_rejected_key_falls_back_to_gemini(self):
+        bad = Exception("Error code: 401 - {'error': {'message': 'Invalid API Key', 'code': 'invalid_api_key'}}")
+        self.model.queue = [bad, Out(v="gemini")]
+        u = []
+        self.assertEqual(llm.structured(Out, [HumanMessage("f")], usage=u).v, "gemini")
+        self.assertEqual(u, ["gemini"])
+
     def test_both_exhausted_reports_when_back(self):
         self.model.queue = [TPD, TPD]
         with self.assertRaises(llm.LLMUnavailable) as ctx:
@@ -286,6 +293,37 @@ class ApiTests(Base):
             self.assertEqual([p["name"] for p in status["providers"]], ["groq", "gemini"])
 
             self.assertEqual(client.post("/api/repos", json={"source": "not a path or url"}).status_code, 400)
+
+
+class DeploymentTests(unittest.TestCase):
+    """Safeguards for a public server (APP_PASSWORD, ALLOW_LOCAL_REPOS=false)."""
+
+    def setUp(self):
+        from fastapi.testclient import TestClient
+
+        from app.main import app
+
+        os.environ["APP_PASSWORD"] = "s3cret"
+        os.environ["ALLOW_LOCAL_REPOS"] = "false"
+        self.client = TestClient(app)
+
+    def tearDown(self):
+        os.environ.pop("APP_PASSWORD")
+        os.environ.pop("ALLOW_LOCAL_REPOS")
+
+    def test_password_required_except_health_check(self):
+        self.assertEqual(self.client.get("/").status_code, 401)
+        self.assertEqual(self.client.get("/api/status").status_code, 401)
+        self.assertEqual(self.client.get("/api/status", auth=("any", "wrong")).status_code, 401)
+        self.assertEqual(self.client.get("/api/status", auth=("any", "s3cret")).status_code, 200)
+        self.assertEqual(self.client.get("/healthz").status_code, 200)
+
+    def test_only_github_urls_on_a_public_server(self):
+        auth = ("any", "s3cret")
+        for source in (str(FIXTURE), "https://gitlab.com/a/b", "file:///etc", "https://github.com.evil.io/a/b"):
+            r = self.client.post("/api/repos", json={"source": source}, auth=auth)
+            self.assertEqual(r.status_code, 400, source)
+        self.assertFalse(self.client.get("/api/status", auth=auth).json()["allow_local"])
 
 
 if __name__ == "__main__":

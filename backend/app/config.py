@@ -38,6 +38,16 @@ def github_token() -> str:
     return os.getenv("GITHUB_TOKEN", "").strip()
 
 
+def app_password() -> str:
+    """When set, every page and API call needs it (HTTP Basic, any username)."""
+    return os.getenv("APP_PASSWORD", "").strip()
+
+
+def allow_local_repos() -> bool:
+    """Off on a public server: only github.com URLs may be opened there."""
+    return os.getenv("ALLOW_LOCAL_REPOS", "true").strip().lower() not in ("0", "false", "no")
+
+
 WORKSPACE = Path(os.getenv("WORKSPACE_DIR", str(ROOT / "workspace")))
 # Temporary clones live outside the project (which may be cloud-synced) and
 # are deleted when no longer needed; see clones.py.
