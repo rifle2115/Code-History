@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Code-History</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M3 3h7v4H3zM8 11h7v4H8zM6.5 7v2.5a1.5 1.5 0 0 0 1.5 1.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+      <span>Code-History</span>
+    </div>
+    <button class="repo-switch" id="repoSwitch" hidden>
+      <span class="repo-name" id="repoName"></span>
+      <span class="repo-ref" id="repoRef"></span>
+    </button>
+    <div class="spacer"></div>
+    <div class="status" id="status"></div>
+  </header>
+
+  <div class="layout empty" id="layout">
+    <aside class="sidebar" id="sidebar" hidden>
+      <div class="sidebar-search">
+        <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5 14 14" stroke="currentColor" stroke-width="1.5"/></svg>
+        <input id="fileFilter" type="text" placeholder="Filter files" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="tree" id="tree"></div>
+    </aside>
+
+    <main class="editor" id="editor">
+      <section class="welcome" id="welcome" hidden>
+        <div class="hero">
+          <div class="rays" aria-hidden="true"></div>
+          <div class="hero-inner">
+            <span class="eyebrow">Code rationale from version history</span>
+            <h1>Know why your code<br>is written this way</h1>
+            <p class="lede">Select a line and trace it back through commits, pull requests, reviews and linked issues.
+              Every answer is cited. When nothing was recorded, you're told that plainly.</p>
+            <form class="open-form" id="openForm">
+              <input id="sourceInput" type="text" placeholder="Local path, GitHub URL, or owner/name" autocomplete="off" spellcheck="false">
+              <button type="submit" class="btn primary lg" id="openBtn">
+                <span id="openLabel">Open repository</span>
+                <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M4 10 10 4M5 4h5v5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+              </button>
+            </form>
+            <p class="form-error" id="openError" hidden></p>
+          </div>
+        </div>
+
+        <div class="tiles">
+          <div class="tile"><span class="tile-n">01</span><b>Blame</b><span>Whitespace and moved code ignored</span></div>
+          <div class="tile"><span class="tile-n">02</span><b>History</b><span>Formatting-only commits skipped</span></div>
+          <div class="tile"><span class="tile-n">03</span><b>Discussion</b><span>PRs, reviews and issues, noise removed</span></div>
+          <div class="tile"><span class="tile-n">04</span><b>Verified</b><span>Each claim checked against its source</span></div>
+        </div>
+
+        <div class="recent" id="recent" hidden>
+          <h2>Recent repositories</h2>
+          <ul id="recentList"></ul>
+        </div>
+      </section>
+
+      <section class="viewer" id="viewer" hidden>
+        <div class="viewer-head">
+          <div class="crumbs" id="crumbs"></div>
+          <div class="viewer-hint">Click a line. Shift-click to select a range.</div>
+        </div>
+        <div class="code" id="code"></div>
+      </section>
+    </main>
+
+    <aside class="inspector" id="inspector" hidden>
+      <div class="inspector-body" id="inspectorBody"></div>
+    </aside>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
